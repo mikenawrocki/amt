@@ -26,7 +26,9 @@ import uuid
 POWER_STATES = {
     'on': 2,
     'off': 8,
-    'reboot': 5
+    'off_graceful': 12,
+    'reboot': 5,
+    'reboot_graceful': 10,
 }
 
 # Valid boot devices

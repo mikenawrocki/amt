@@ -104,14 +104,20 @@ class Client(object):
         payload = wsman.power_state_request(self.uri, "on")
         return self.post(payload, CIM_PowerManagementService)
 
-    def power_off(self):
+    def power_off(self, graceful=False):
         """Power off the box."""
-        payload = wsman.power_state_request(self.uri, "off")
+        target_state = "off"
+        if graceful:
+            target_state += '_graceful'
+        payload = wsman.power_state_request(self.uri, target_state)
         return self.post(payload, CIM_PowerManagementService)
 
-    def power_cycle(self):
+    def power_cycle(self, graceful=False):
         """Power cycle the box."""
-        payload = wsman.power_state_request(self.uri, "reboot")
+        target_state = "reboot"
+        if graceful:
+            target_state += '_graceful'
+        payload = wsman.power_state_request(self.uri, target_state)
         return self.post(payload, CIM_PowerManagementService)
 
     def pxe_next_boot(self):
