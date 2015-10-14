@@ -145,8 +145,21 @@ class Client(object):
             "PowerState")
         return value
 
-    def enable_vnc(self):
-        payload = wsman.enable_remote_kvm(self.uri, self.password)
+    def enable_vnc(self, password=None):
+        """ Enable VNC connections via port 5900 on the managed host.
+
+        RFB passwords must be *exactly* 8 characters long, as noted in the
+        Intel KVM documentation here: https://goo.gl/eT0TAA
+
+        Allow the user to specify an alternate RFB password via kwargs, or
+        simply truncate the provided AMT password to that length, in the
+        event it is longer.
+        """
+
+        if not password or len(password) != 8:
+            password = self.password[:8]
+
+        payload = wsman.enable_remote_kvm(self.uri, password)
         self.post(payload)
         payload = wsman.kvm_redirect(self.uri)
         self.post(payload)
