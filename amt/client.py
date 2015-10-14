@@ -17,6 +17,10 @@
 # Open Source software that acts as one of the few bits of example
 # code for this interface.
 
+import errno
+import socket
+import time
+from datetime import datetime, timedelta
 import xml.dom.minidom
 from xml.etree import ElementTree
 
@@ -63,6 +67,9 @@ def pp_xml(body):
     pretty = xml.dom.minidom.parseString(body)
     return pretty.toprettyxml(indent="  ")
 
+class AMTTimeout(Exception):
+    pass
+
 
 class Client(object):
     """AMT client.
@@ -80,7 +87,35 @@ class Client(object):
         self.username = username
         self.password = password
 
+    def _awaken_amt(self, timeout=16):
+        """ `Awaken` the AMT processor.
+
+        When a device is powered off, AMT seems to enter some sort of power
+        saving mode in which it replies to SYN packets with RST packets until
+        it is ready to accept the connection, which it then will accept. This
+        method simply attempts to connect until a specified amount of time
+        passes, or the connection is accepted.
+        """
+
+        start_time = datetime.now()
+        end_time = start_time + timedelta(seconds=timeout)
+
+        while datetime.now() < end_time:
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                    socket.create_connection((self.address, self.port),
+                                             timeout=timeout)
+                    return
+            except socket.error as err:
+                if err.errno == errno.ECONNREFUSED:
+                    time.sleep(0.5)
+                else:
+                    raise
+
+        raise AMTTimeout
+
     def post(self, payload, ns=None):
+        self._awaken_amt()
         resp = requests.post(self.uri,
                              headers={'content-type':
                                       'application/soap+xml;charset=UTF-8'},
@@ -136,6 +171,7 @@ class Client(object):
         payload = wsman.get_request(
             self.uri,
             CIM_AssociatedPowerManagementService)
+        self._awaken_amt()
         resp = requests.post(self.uri,
                              auth=HTTPDigestAuth(self.username, self.password),
                              data=payload)
@@ -169,6 +205,7 @@ class Client(object):
             self.uri,
             ('http://intel.com/wbem/wscim/1/ips-schema/1/'
              'IPS_KVMRedirectionSettingData'))
+        self._awaken_amt()
         resp = requests.post(self.uri,
                              auth=HTTPDigestAuth(self.username, self.password),
                              data=payload)
